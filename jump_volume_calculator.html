@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trail Material Volume Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .calculator {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: inline-block;
+            width: 200px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 150px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }
+        .result-item.total {
+            background: #e8f5e9;
+            border-left: 4px solid #2E7D32;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .result-label {
+            display: inline-block;
+            width: 250px;
+            color: #666;
+        }
+        .result-value {
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+        .formula-display {
+            background: #fff3cd;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .visualization {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: block;
+            margin: 10px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>Trail Material Volume Calculator</h1>
+        <p>Calculate material volume needed for a raised trail with ramps and side slopes. Ramp lengths and side slope widths are calculated from the given angles and height.</p>
+        
+        <form id="trailForm">
+            <div class="form-group">
+                <label for="trailWidth">Trail Width (x):</label>
+                <input type="number" id="trailWidth" step="0.1" min="0.1" value="2" required>
+                <span>meters</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="tableLength">Table Length (L):</label>
+                <input type="number" id="tableLength" step="0.1" min="0.1" value="5" required>
+                <span>meters</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="tableHeight">Table Height (h):</label>
+                <input type="number" id="tableHeight" step="0.01" min="0.01" value="1" required>
+                <span>meters</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="rampAngle">Ramp Angle (in/out):</label>
+                <input type="number" id="rampAngle" step="0.1" min="0.1" max="89" value="20" required>
+                <span>degrees</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="sideSlopeAngle">Side Slope Angle:</label>
+                <input type="number" id="sideSlopeAngle" step="0.1" min="0.1" max="89" value="40" required>
+                <span>degrees</span>
+            </div>
+            
+            <button type="submit">Calculate Volume</button>
+        </form>
+    </div>
+
+    <div class="results" id="results" style="display: none;">
+        <h2>Volume Calculation Results</h2>
+        
+        <div class="formula-display" id="formulaDisplay"></div>
+        
+        <div class="result-item">
+            <span class="result-label">1. Cuboid (Table):</span>
+            <span class="result-value">
+                <span id="vMainSingle">-</span> × <span id="vMainPieces">1</span> = <span id="vMain">-</span>
+            </span>
+        </div>
+        
+        <div class="result-item">
+            <span class="result-label">2. Triangular Prisms (Ramps):</span>
+            <span class="result-value">
+                <span id="vRampSingle">-</span> × <span id="vRampPieces">2</span> = <span id="vRamp">-</span>
+            </span>
+        </div>
+        
+        <div class="result-item">
+            <span class="result-label">3. Triangular Prisms (Side Slopes):</span>
+            <span class="result-value">
+                <span id="vSideSingle">-</span> × <span id="vSidePieces">2</span> = <span id="vSide">-</span>
+            </span>
+        </div>
+        
+        <div class="result-item">
+            <span class="result-label">4. Pyramids (Corners):</span>
+            <span class="result-value">
+                <span id="vCornerSingle">-</span> × <span id="vCornerPieces">4</span> = <span id="vCorner">-</span>
+            </span>
+        </div>
+        
+        <div class="result-item total">
+            <span class="result-label">Total Volume:</span>
+            <span class="result-value" id="vTotal">-</span>
+        </div>
+    </div>
+
+    <div class="visualization" id="visualization" style="display: none;">
+        <h2>3D Component Views</h2>
+        
+        <div class="formula-display" style="margin-bottom: 20px;">
+            <strong>Variable Legend:</strong><br>
+            <strong>Table:</strong> L_t = Table Length, W_t = Table Width, H_t = Table Height<br>
+            <strong>Ramp:</strong> L_r = Ramp Length, W_r = Ramp Width (= W_t), H_r = Ramp Height (= H_t)<br>
+            <strong>Side Slope:</strong> L_s = Side Slope Length (= L_t), W_s = Side Slope Width, H_s = Side Slope Height (= H_t)<br>
+            <strong>Corner Pyramid:</strong> L_p = Pyramid Base Length (= L_r), W_p = Pyramid Base Width (= W_s), H_p = Pyramid Height (= H_t)
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div>
+                <h3>1. Cuboid</h3>
+                <canvas id="canvasMain" width="300" height="300"></canvas>
+                <div class="formula-display" style="margin-top: 10px; font-size: 0.9em;">
+                    V = L_t × W_t × H_t
+                </div>
+            </div>
+            <div>
+                <h3>2. Triangular Prism (Ramp)</h3>
+                <canvas id="canvasRamp" width="300" height="300"></canvas>
+                <div class="formula-display" style="margin-top: 10px; font-size: 0.9em;">
+                    V = (1/2) × W_t × H_t × L_r<br>
+                    where L_r = H_t / tan(ramp_angle)
+                </div>
+            </div>
+            <div>
+                <h3>3. Triangular Prism (Side Slope)</h3>
+                <canvas id="canvasSide" width="300" height="300"></canvas>
+                <div class="formula-display" style="margin-top: 10px; font-size: 0.9em;">
+                    V = (1/2) × L_t × H_t × W_s<br>
+                    where W_s = H_t / tan(side_slope_angle)
+                </div>
+            </div>
+            <div>
+                <h3>4. Pyramid (Corner)</h3>
+                <canvas id="canvasCorner" width="300" height="300"></canvas>
+                <div class="formula-display" style="margin-top: 10px; font-size: 0.9em;">
+                    V = (1/3) × L_r × W_s × H_t<br>
+                    (Pyramid with rectangular base)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Convert degrees to radians
+        function degToRad(degrees) {
+            return degrees * Math.PI / 180;
+        }
+
+        // Calculate volume components
+        function calculateVolumes(x, L, h, rampAngleDeg, sideSlopeAngleDeg) {
+            const rampAngle = degToRad(rampAngleDeg);
+            const sideSlopeAngle = degToRad(sideSlopeAngleDeg);
+            
+            // Calculate derived dimensions
+            const L_ramp = h / Math.tan(rampAngle);
+            const w_side = h / Math.tan(sideSlopeAngle);
+            
+            // Component volumes
+            const V_main = L * x * h;
+            
+            const V_ramp_single = 0.5 * x * h * L_ramp;
+            const V_ramp_total = 2 * V_ramp_single;
+            
+            const V_side_single = 0.5 * L * h * w_side;
+            const V_side_total = 2 * V_side_single;
+            
+            const V_corner_single = (1/3) * L_ramp * w_side * h;
+            const V_corner_total = 4 * V_corner_single;
+            
+            // Total volume: 1 cuboid + 2 ramps + 2 side slopes + 4 corners
+            const V_total = V_main + V_ramp_total + V_side_total + V_corner_total;
+            
+            return {
+                V_main,
+                V_ramp_single,
+                V_ramp_total,
+                V_side_single,
+                V_side_total,
+                V_corner_single,
+                V_corner_total,
+                V_total,
+                L_ramp,
+                w_side
+            };
+        }
+
+        // Format number with two decimal places and comma separators
+        function formatVolume(volume) {
+            return volume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m³';
+        }
+        
+        // Format number for formula display (two decimals, comma separators)
+        function formatNumber(num) {
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Store renderers for each canvas to enable animation
+        const canvasRenderers = {};
+
+        // Generic function to create multiple instances with transformations
+        function createInstances(createMesh, transformations) {
+            if (!transformations || transformations.length === 0) {
+                return createMesh();
+            }
+            const group = new THREE.Group();
+            transformations.forEach(transform => {
+                const mesh = createMesh();
+                if (transform.position) {
+                    if (transform.position.x !== undefined) mesh.position.x = transform.position.x;
+                    if (transform.position.y !== undefined) mesh.position.y = transform.position.y;
+                    if (transform.position.z !== undefined) mesh.position.z = transform.position.z;
+                }
+                if (transform.rotation) {
+                    if (transform.rotation.x !== undefined) mesh.rotation.x = transform.rotation.x;
+                    if (transform.rotation.y !== undefined) mesh.rotation.y = transform.rotation.y;
+                    if (transform.rotation.z !== undefined) mesh.rotation.z = transform.rotation.z;
+                }
+                if (transform.scale) {
+                    if (transform.scale.x !== undefined) mesh.scale.x = transform.scale.x;
+                    if (transform.scale.y !== undefined) mesh.scale.y = transform.scale.y;
+                    if (transform.scale.z !== undefined) mesh.scale.z = transform.scale.z;
+                }
+                group.add(mesh);
+            });
+            return group;
+        }
+
+        // Simple 3D visualization - render each component separately with orbit controls
+        function renderComponent(canvasId, createMesh, scale = 1, tableDims = null, vertexLabels = null, transformations = null) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            // Clean up existing renderer if it exists
+            if (canvasRenderers[canvasId]) {
+                const old = canvasRenderers[canvasId];
+                if (old.animationId) cancelAnimationFrame(old.animationId);
+                if (old.renderer) old.renderer.dispose();
+            }
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+            // Set Z as the up vector (vertical)
+            camera.up.set(0, 0, 1);
+            // Position camera to view from an angle with Z pointing up
+            camera.position.set(4, 4, 4);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(300, 300);
+
+            // Add orbit controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            // Set Z as the up vector for controls
+            controls.target.set(0, 0, 0);
+            // Note: OrbitControls uses Y-up by default, but camera.up is set to Z
+
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Create mesh/group and extract only geometric edges (no triangulation diagonals)
+            const mesh = transformations ? createInstances(createMesh, transformations) : createMesh();
+            const isGroup = mesh instanceof THREE.Group;
+            
+            // Update quaternion from rotation to ensure it's synchronized
+            if (!isGroup) {
+                mesh.updateMatrixWorld();
+                if (scale !== 1) {
+                    mesh.scale.multiplyScalar(scale);
+                    // Scale the position offset as well to maintain correct alignment
+                    mesh.position.multiplyScalar(scale);
+                }
+            } else {
+                // For groups, apply scale to each child
+                mesh.children.forEach(child => {
+                    if (scale !== 1) {
+                        child.scale.multiplyScalar(scale);
+                        child.position.multiplyScalar(scale);
+                    }
+                });
+            }
+            
+            // Calculate axes length from table dimensions (W, L, H) plus 50%
+            // Apply scale factor so axes match the scaled objects
+            let axesLength;
+            if (tableDims) {
+                const { x, L, h } = tableDims;
+                const maxTableDim = Math.max(x, L, h);
+                axesLength = maxTableDim * 1.5 * scale; // 50% longer than longest table dimension, scaled
+            } else {
+                // Fallback: use mesh bounding box if table dimensions not provided
+                if (!isGroup && mesh.geometry) {
+                    mesh.geometry.computeBoundingBox();
+                    const bbox = mesh.geometry.boundingBox;
+                    const size = new THREE.Vector3();
+                    bbox.getSize(size);
+                    const actualScale = scale !== 1 ? scale : 1;
+                    const maxDim = Math.max(size.x, size.y, size.z) * actualScale;
+                    axesLength = maxDim * 1.5;
+            } else {
+                    axesLength = 5; // Default fallback
+                }
+            }
+            
+            // Add extended axes helper
+            const axesHelper = new THREE.AxesHelper(axesLength);
+            scene.add(axesHelper);
+            
+            // Add axis labels
+            function createAxisLabel(text, color) {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 64;
+                canvas.height = 64;
+                context.fillStyle = 'rgba(0, 0, 0, 0)';
+                context.fillRect(0, 0, 64, 64);
+                context.fillStyle = color;
+                context.font = 'Bold 48px Arial';
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText(text, 32, 32);
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.scale.set(0.2, 0.2, 1);
+                return sprite;
+            }
+            
+            // X axis label (red)
+            const xLabel = createAxisLabel('X', '#ff0000');
+            xLabel.position.set(axesLength, 0, 0);
+            scene.add(xLabel);
+            
+            // Y axis label (blue - length)
+            const yLabel = createAxisLabel('Y', '#0000ff');
+            yLabel.position.set(0, axesLength, 0);
+            scene.add(yLabel);
+            
+            // Z axis label (green - height/up)
+            const zLabel = createAxisLabel('Z', '#00ff00');
+            zLabel.position.set(0, 0, axesLength);
+            scene.add(zLabel);
+            
+            // Extract only geometric edges using EdgesGeometry with threshold
+            // This avoids showing triangulation diagonals
+            if (isGroup) {
+                // For groups, create edges for each child mesh
+                mesh.children.forEach(child => {
+                    if (child.geometry) {
+                        const edgesGeometry = new THREE.EdgesGeometry(child.geometry, 15); // 15 degree threshold
+                        const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+                        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                        edges.scale.copy(child.scale);
+                        edges.position.copy(child.position); // Copy position from child so edges align correctly
+                        edges.rotation.copy(child.rotation); // Copy rotation from child so edges align correctly
+                        scene.add(edges);
+                    }
+                });
+            } else {
+                // Single mesh
+                const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry, 15); // 15 degree threshold
+                const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+                const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                edges.scale.copy(mesh.scale);
+                edges.position.copy(mesh.position); // Copy position from mesh so edges align correctly
+                edges.rotation.copy(mesh.rotation); // Copy rotation from mesh so edges align correctly
+                scene.add(edges);
+            }
+
+            // Add vertex labels if provided
+            if (vertexLabels) {
+                vertexLabels.forEach(({ position, label }) => {
+                    const labelSprite = createAxisLabel(label, '#000000');
+                    // Apply mesh rotation, scale, and position to vertex position
+                    const worldPos = position.clone();
+                    // Apply rotation (using quaternion)
+                    worldPos.applyQuaternion(mesh.quaternion);
+                    // Apply scale
+                    worldPos.multiplyScalar(scale);
+                    // Apply mesh position
+                    worldPos.add(mesh.position);
+                    labelSprite.position.copy(worldPos);
+                    scene.add(labelSprite);
+                });
+            }
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            const animationId = animate();
+
+            // Store for cleanup
+            canvasRenderers[canvasId] = { renderer, scene, camera, controls, animationId };
+        }
+
+        // Create main body (rectangular prism)
+        // Coordinate system: X=width, Y=length, Z=height (up)
+        // Bottom-left corner at origin (0, 0, 0)
+        // Base at z=0, top at z=h
+        function createMainBody(x, L, h) {
+            const geometry = new THREE.BoxGeometry(x, L, h); // x=width, y=length, z=height
+            const material = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            // BoxGeometry centers at origin, so shift to position bottom-left corner at (0,0,0)
+            // X: shift by +x/2 (left edge at x=0), Y: shift by +L/2 (front edge at y=0), Z: shift by +h/2 (bottom at z=0)
+            mesh.position.set(x / 2, L / 2, h / 2);
+            return mesh;
+        }
+
+        // Create ramp (triangular prism)
+        // Coordinate system: X=width, Y=length, Z=height (up)
+        // Base face: L_ramp × W (ramp length × table width) in XY plane at z=0
+        // Ramps up along Y direction: from y=0 (z=0) to y=L_ramp (z=h)
+        // Extruded along X (width W = x)
+        function createRamp(x, L_ramp, h, isEntry) {
+            const vertices = new Float32Array([
+                0, 0, 0,           // 0: base corner (low end)
+                0, L_ramp, h,      // 1: top far corner (high end, at y=L_ramp, z=h)
+                0, L_ramp, 0,      // 2: base far corner (high end base, at y=L_ramp, z=0)
+                x, 0, 0,           // 3: base corner (other side, low end)
+                x, L_ramp, h,      // 4: top far corner (other side, high end)
+                x, L_ramp, 0       // 5: base far corner (other side, high end base)
+            ]);
+            
+            // Faces: 2 triangles (ends) + 3 rectangles (sides, each split into 2 triangles)
+            const indices = new Uint16Array([
+                // Front triangle (x=0 face, sloped)
+                0, 1, 2,
+                // Back triangle (x=x face, sloped, reversed for correct normal)
+                3, 4, 5,
+                // Base rectangle (z=0, L_ramp × W, split into 2 triangles)
+                0, 3, 5,
+                0, 5, 2,
+                // Top sloped face (z from 0 to h, split into 2 triangles)
+                1, 4, 3,
+                1, 3, 0,
+                // Right vertical face (y=L_ramp, split into 2 triangles)
+                2, 5, 4,
+                2, 4, 1
+            ]);
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+            geometry.computeVertexNormals();
+            
+            const material = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Position will be set by caller
+            return mesh;
+        }
+
+        // Create side slope (triangular prism)
+        // Coordinate system: X=width, Y=length, Z=height (up)
+        // Base face: L × W_side (table length × side slope width) in XY plane at z=0
+        // Ramps up along X direction: from x=0 (z=0) to x=w_side (z=h)
+        // Extruded along Y (length L = table length)
+        function createSideSlope(L, w_side, h, isLeft) {
+            const vertices = new Float32Array([
+                0, 0, 0,           // 0: base corner (vertical edge)
+                w_side, 0, h,      // 1: top far corner (sloped edge, at x=w_side, z=h)
+                w_side, 0, 0,      // 2: base far corner (sloped edge base, at x=w_side, z=0)
+                0, L, 0,           // 3: base corner (other end, along Y)
+                w_side, L, h,      // 4: top far corner (other end)
+                w_side, L, 0       // 5: base far corner (other end)
+            ]);
+            
+            // Faces: 2 triangles (ends) + 3 rectangles (sides, each split into 2 triangles)
+            const indices = new Uint16Array([
+                // Front triangle (y=0 face, sloped)
+                0, 1, 2,
+                // Back triangle (y=L face, sloped, reversed for correct normal)
+                3, 4, 5,
+                // Base rectangle (z=0, L × W_side, split into 2 triangles)
+                0, 3, 5,
+                0, 5, 2,
+                // Top sloped face (z from 0 to h, split into 2 triangles)
+                1, 4, 3,
+                1, 3, 0,
+                // Right sloped face (x=w_side, split into 2 triangles)
+                2, 5, 4,
+                2, 4, 1
+            ]);
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+            geometry.computeVertexNormals();
+            
+            const material = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Position will be set by caller
+            return mesh;
+        }
+
+        // Create corner (pyramid with rectangular base)
+        // Coordinate system: X=width, Y=length, Z=height (up)
+        // Rectangular base: L_ramp × w_side
+        // Apex at height h above one corner of the base
+        // Volume: V = (1/3) × L_ramp × w_side × h
+        function createCorner(L_ramp, w_side, h, position) {
+            // Pyramid with rectangular base w_side × L_ramp
+            // Base rectangle vertices (in XY plane, Z=0):
+            // Named vertices for reference:
+            // V0: base_origin - at (0, 0, 0) - origin corner, apex is above this
+            // V1: base_X - at (w_side, 0, 0) - corner along +X axis (width direction)
+            // V2: base_diagonal - at (w_side, L_ramp, 0) - far corner (diagonal from origin)
+            // V3: base_Y - at (0, L_ramp, 0) - corner along +Y axis (length direction)
+            // V4: apex - at (0, 0, h) - apex at full height h above V0 (base_origin)
+            const vertices = new Float32Array([
+                0, 0, 0,              // V0: base_origin - origin corner
+                w_side, 0, 0,         // V1: base_X - corner along +X (width w_side)
+                w_side, L_ramp, 0,    // V2: base_diagonal - far corner
+                0, L_ramp, 0,         // V3: base_Y - corner along +Y (length L_ramp)
+                0, 0, h               // V4: apex - above base_origin at height h
+            ]);
+            
+            // Five faces: rectangular base (split into 2 triangles) + 4 triangular sides
+            const indices = new Uint16Array([
+                // Base rectangle (z=0, split into 2 triangles, counter-clockwise when viewed from above)
+                0, 1, 2,
+                0, 2, 3,
+                // Side 1: ramp face (triangle from base edge 0-1 to apex)
+                0, 1, 4,
+                // Side 2: side slope face (triangle from base edge 0-3 to apex)
+                0, 3, 4,
+                // Side 3: far edge face (triangle from base edge 1-2 to apex)
+                1, 2, 4,
+                // Side 4: other far edge face (triangle from base edge 2-3 to apex)
+                2, 3, 4
+            ]);
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+            geometry.computeVertexNormals();
+            
+            const material = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            return mesh;
+        }
+
+        // Update 3D component views
+        function update3DVisualization(x, L, h, L_ramp, w_side) {
+            // Calculate scale to fit components nicely in view
+            const maxDim = Math.max(x, L, h, L_ramp, w_side);
+            const scale = 1 / maxDim;
+            
+            // Table dimensions for axes calculation
+            const tableDims = { x, L, h };
+            
+            // Render main body (cuboid)
+            renderComponent('canvasMain', () => {
+                return createMainBody(x, L, h);
+            }, scale, tableDims);
+            
+            // Render ramp (triangular prism) - two ramps
+            renderComponent('canvasRamp', () => createRamp(x, L_ramp, h, false), scale, tableDims, null, [
+                { position: { y: -L_ramp } }, // First ramp: subtract L_r from Y
+                { position: { x: x, y: L + L_ramp }, rotation: { z: Math.PI } } // Second ramp: Y at L_t + L_r, X at W_t, rotated 180° around Z
+            ]);
+            
+            // Render side slope (triangular prism) - two side slopes
+            renderComponent('canvasSide', () => createSideSlope(L, w_side, h, false), scale, tableDims, null, [
+                { position: { x: -w_side } }, // First side slope: subtract W_s from X
+                { position: { x: x + w_side, y: L }, rotation: { z: Math.PI } } // Second side slope: X at W_t + W_s, Y at L_t, rotated 180° around Z
+            ]);
+            
+            // Render corner (pyramid with rectangular base) - four pyramids
+            renderComponent('canvasCorner', () => createCorner(L_ramp, w_side, h, 'exit-right'), scale, tableDims, null, [
+                { rotation: { z: Math.PI } }, // First corner: rotated 180° around Z
+                { position: { x: x }, rotation: { z: Math.PI }, scale: { x: -1 } }, // Second corner: mirrored in ZY plane, offset by W_t on X
+                { position: { y: L }, rotation: { z: Math.PI }, scale: { y: -1 } }, // Third corner: mirrored in XZ plane, offset by L_t on Y
+                { position: { x: x, y: L }, rotation: { z: Math.PI }, scale: { x: -1, y: -1 } } // Fourth corner: mirrored in both planes, offset by W_t and L_t
+            ]);
+        }
+
+        // Display results
+        function displayResults(results) {
+            // Main body (1 piece)
+            document.getElementById('vMainSingle').textContent = formatVolume(results.V_main);
+            document.getElementById('vMainPieces').textContent = '1';
+            document.getElementById('vMain').textContent = formatVolume(results.V_main);
+            
+            // Ramps (2 pieces)
+            document.getElementById('vRampSingle').textContent = formatVolume(results.V_ramp_single);
+            document.getElementById('vRampPieces').textContent = '2';
+            document.getElementById('vRamp').textContent = formatVolume(results.V_ramp_total);
+            
+            // Side slopes (2 pieces)
+            document.getElementById('vSideSingle').textContent = formatVolume(results.V_side_single);
+            document.getElementById('vSidePieces').textContent = '2';
+            document.getElementById('vSide').textContent = formatVolume(results.V_side_total);
+            
+            // Corners (4 pieces)
+            document.getElementById('vCornerSingle').textContent = formatVolume(results.V_corner_single);
+            document.getElementById('vCornerPieces').textContent = '4';
+            document.getElementById('vCorner').textContent = formatVolume(results.V_corner_total);
+            
+            // Total
+            document.getElementById('vTotal').textContent = formatVolume(results.V_total);
+            
+            // Display formula breakdown
+            const formulaText = 
+                `V_total = V_main + 2×V_ramp + 2×V_side + 4×V_corner\n` +
+                `Where:\n` +
+                `  L_r = H_t / tan(${parseFloat(document.getElementById('rampAngle').value)}°) = ${formatNumber(results.L_ramp)} m\n` +
+                `  W_s = H_t / tan(${parseFloat(document.getElementById('sideSlopeAngle').value)}°) = ${formatNumber(results.w_side)} m`;
+            
+            document.getElementById('formulaDisplay').textContent = formulaText;
+            document.getElementById('results').style.display = 'block';
+            
+            // Update 3D visualization
+            const x = parseFloat(document.getElementById('trailWidth').value);
+            const L = parseFloat(document.getElementById('tableLength').value);
+            const h = parseFloat(document.getElementById('tableHeight').value);
+            
+            document.getElementById('visualization').style.display = 'block';
+            update3DVisualization(x, L, h, results.L_ramp, results.w_side);
+        }
+
+        // Handle form submission
+        document.getElementById('trailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const x = parseFloat(document.getElementById('trailWidth').value);
+            const L = parseFloat(document.getElementById('tableLength').value);
+            const h = parseFloat(document.getElementById('tableHeight').value);
+            const rampAngle = parseFloat(document.getElementById('rampAngle').value);
+            const sideSlopeAngle = parseFloat(document.getElementById('sideSlopeAngle').value);
+            
+            const results = calculateVolumes(x, L, h, rampAngle, sideSlopeAngle);
+            displayResults(results);
+        });
+
+
+        // Calculate on initial load with default values
+        window.addEventListener('load', function() {
+            const form = document.getElementById('trailForm');
+            form.dispatchEvent(new Event('submit'));
+        });
+    </script>
+</body>
+</html>
